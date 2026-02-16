@@ -1,41 +1,37 @@
 {
-    "name": "bynixscript",
-    "version": "0.2.1-next",
-    "description": "This is new Programming Language.",
-    "browser": "js/browser.js",
-    "main": "./index.js",
-    "scripts": {
-        "test": "node index.js"
-    },
-    "alias": {
-        "test": "npm run test"
-    },
-    "bin": {
-        "bynixscript": "./index.js",
-        "bs": "./index.js",
-        "bsr": "./dist/bsr.js",
-        "bst": "./dist/bst.js",
-        "bsp": "./dist/bsp.js",
-        "bsd": "./dist/bsd.js"
-    },
-    "author": "UngGasStudio",
-    "license": "MIT",
-    "dependencies": {
-        "fs": "^0.0.1-security",
-        "vm": "^0.1.0",
-        "path": "^0.4.9",
-        "chokidar": "^4.0.0"
-    },
-    "Keywords": [
-        "Languages",
-        "JavaScript",
-        "BynixScript",
-        "UngGasStudio",
-        "Indonesian"
-    ],
-    "devDependencies": {
-        "eslint": "^7.32.0",
-        "jest": "^27.5.1"
-    },
-    "repository": "https://github.com/UngGasStudio/BynixScript/"
+  "name": "bynixscript",
+  "version": "0.2.2-next",
+  "description": "This is new Programming Language.",
+  "type": "commonjs",
+  "browser": "js/browser.js",
+  "main": "./index.js",
+  "scripts": {
+    "test": "node index.js"
+  },
+  "alias": {
+    "test": "npm run test"
+  },
+  "bin": {
+    "bynix": "./dist/index.min.cjs"
+  },
+  "author": "UngGasStudio",
+  "license": "MIT",
+  "dependencies": {
+    "chokidar": "^4.0.0",
+    "commander": "^14.0.3",
+    "fs": "^0.0.1-security",
+    "path": "^0.4.9",
+    "vm": "^0.1.0"
+  },
+  "Keywords": [
+    "Languages",
+    "JavaScript",
+    "BynixScript",
+    "SoTeenStudio",
+    "Indonesian"
+  ],
+  "devDependencies": {
+    "esbuild": "^0.25.10"
+  },
+  "repository": "https://github.com/UngGasStudio/BynixScript/"
 }

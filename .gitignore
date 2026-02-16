@@ -1,4 +1,7 @@
+/raw/
 /dist/
 /node_modules/
 *.js
 !js/*.js
+/.trash/
+*.tgz

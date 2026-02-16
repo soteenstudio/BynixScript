@@ -2,7 +2,7 @@ const fs = require('fs');
 
 const defaultConfig = {
   extension: {
-    primary: '.bs',
+    primary: '.bys',
     secondary: '.bynixscript',
     module: '.mbs'
   },

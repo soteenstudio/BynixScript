@@ -1,0 +1,14 @@
+/src/
+/raw/
+/docs/
+/example/
+/js/*
+/.git/
+/.github/
+bsc.json
+CONTRIBUTING.md
+*.bs
+*.tgz
+esbuild.config.js
+*.map
+/.trash/

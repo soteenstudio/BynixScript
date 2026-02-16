@@ -16,68 +16,71 @@ const sandbox = {
   process: process
 };
 
-var locate = str(process.argv[2])
-const directory = str(toFolder)
-const directory2 = str(readFolder)
-var filePath = path.join(directory, locate)
-var fileFrom = path.join(directory2, locate)
-
-var code
-handle:
-  var box = fs.readFileSync(fileFrom, 'utf-8')
-  if watch === true:
-    watching(directory2, directory)
-  else:
-    if locate.is_end(extensions.primary) || locate.is_end(extensions.secondary) || locate.is_end(extensions.module):
-      code = parseCode(box)
-      code = addSemicolons(code)
-      const parsingResults = parsing(code)
-      
-      if parsingResults === false:
-        print("Error:", parsingMsg.message)
-      else:
-        code = flowReplace(code)
-        code = utilityReplace(code)
-        code = funcReplace(code)
-        code = condReplace(code)
-        code = forEachReplace(code)
-        code = reassignReplace(code)
-        code = assignReplace(code)
-        code = logReplace(code)
-        code = interactReplace(code)
-        code = mathReplace(code)
-        code = commentReplace(code)
-        code = asyncReplace(code)
-        code = forReplace(code)
-        code = convReplace(code)
-        code = checkReplace(code)
-        code = oopReplace(code)
-        code = excepReplace(code)
-        code = domReplace(code)
-        
-        vm.runInNewContext(code, sandbox);
-        filePath = filePath.change(extensions.primary, ".js")
-        filePath = filePath.change(extensions.secondary, ".js")
-        filePath = filePath.change(extensions.module, ".mjs")
-        
-        fs.writeFileSync(filePath, code, 'utf8')
-        print("Successfully compiled " + locate + " file")
-      end
+func bstCommand(locate):
+  const directory = str(toFolder)
+  const directory2 = str(readFolder)
+  var filePath = path.join(directory, locate)
+  var fileFrom = path.join(directory2, locate)
+  
+  var code
+  handle:
+    var box = fs.readFileSync(fileFrom, 'utf-8')
+    if watch === true:
+      watching(directory2, directory)
     else:
-      print(`Error: Unsupported file extension. Please use a ${extensions.primary}, ${extensions.secondary}, or ${extensions.module} file.`)
+      if locate.is_end(extensions.primary) || locate.is_end(extensions.secondary) || locate.is_end(extensions.module):
+        code = parseCode(box)
+        code = addSemicolons(code)
+        const parsingResults = parsing(code)
+        
+        if parsingResults === false:
+          print("Error:", parsingMsg.message)
+        else:
+          code = flowReplace(code)
+          code = utilityReplace(code)
+          code = funcReplace(code)
+          code = condReplace(code)
+          code = forEachReplace(code)
+          code = reassignReplace(code)
+          code = assignReplace(code)
+          code = logReplace(code)
+          code = interactReplace(code)
+          code = mathReplace(code)
+          code = commentReplace(code)
+          code = asyncReplace(code)
+          code = forReplace(code)
+          code = convReplace(code)
+          code = checkReplace(code)
+          code = oopReplace(code)
+          code = excepReplace(code)
+          code = domReplace(code)
+          
+          vm.runInNewContext(code, sandbox);
+          filePath = filePath.change(extensions.primary, ".js")
+          filePath = filePath.change(extensions.secondary, ".js")
+          filePath = filePath.change(extensions.module, ".mjs")
+          
+          fs.writeFileSync(filePath, code, 'utf8')
+          print("Successfully compiled " + locate + " file")
+        end
+      else:
+        print(`Error: Unsupported file extension. Please use a ${extensions.primary}, ${extensions.secondary}, or ${extensions.module} file.`)
+      end
+    end
+  recovery (err):
+    const msg = err.message
+    if msg.is_includes('module'):
+      filePath = filePath.change(extensions.primary, ".js")
+      filePath = filePath.change(extensions.secondary, ".js")
+      filePath = filePath.change(extensions.module, ".mjs")
+      
+      fs.writeFileSync(filePath, code, 'utf8')
+      print("Successfully compiled " + locate + " file")
+    else:
+      const stackMsg = err.stack
+      print(stackParsing(locate, err.message, stackMsg, box, err.name))
     end
   end
-recovery (err):
-  const msg = err.message
-  if msg.is_includes('module'):
-    filePath = filePath.change(extensions.primary, ".js")
-    filePath = filePath.change(extensions.secondary, ".js")
-    filePath = filePath.change(extensions.module, ".mjs")
-    
-    fs.writeFileSync(filePath, code, 'utf8')
-    print("Successfully compiled " + locate + " file")
-  else:
-    const stackMsg = err.stack
-    print(stackParsing(locate, err.message, stackMsg, box, err.name))
-  end
 end
+
+module.exports = { bstCommand }

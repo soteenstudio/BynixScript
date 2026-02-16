@@ -15,52 +15,55 @@ const sandbox = {
   process: process
 };
 
-var locate = str(process.argv[2])
-const directory = str(readFolder)
-var fileFrom = path.join(directory, locate)
-
-var code
-handle:
-  var box = fs.readFileSync(fileFrom, 'utf-8')
-  if locate.is_end(extensions.primary) || locate.is_end(extensions.secondary) || locate.is_end(extensions.module):
-    code = parseCode(box)
-    code = addSemicolons(code)
-    const parsingResults = parsing(code)
-    
-    if parsingResults === false:
-      print("Error:", parsingMsg.message)
-    else:
-      code = flowReplace(code)
-      code = utilityReplace(code)
-      code = funcReplace(code)
-      code = condReplace(code)
-      code = forEachReplace(code)
-      code = reassignReplace(code)
-      code = assignReplace(code)
-      code = logReplace(code)
-      code = interactReplace(code)
-      code = mathReplace(code)
-      code = commentReplace(code)
-      code = asyncReplace(code)
-      code = forReplace(code)
-      code = convReplace(code)
-      code = checkReplace(code)
-      code = oopReplace(code)
-      code = excepReplace(code)
-      code = domReplace(code)
+func bspCommand(locate):
+  const directory = str(readFolder)
+  var fileFrom = path.join(directory, locate)
+  
+  var code
+  handle:
+    var box = fs.readFileSync(fileFrom, 'utf-8')
+    if locate.is_end(extensions.primary) || locate.is_end(extensions.secondary) || locate.is_end(extensions.module):
+      code = parseCode(box)
+      code = addSemicolons(code)
+      const parsingResults = parsing(code)
       
-      vm.runInNewContext(code, sandbox);
-      print(code)
+      if parsingResults === false:
+        print("Error:", parsingMsg.message)
+      else:
+        code = flowReplace(code)
+        code = utilityReplace(code)
+        code = funcReplace(code)
+        code = condReplace(code)
+        code = forEachReplace(code)
+        code = reassignReplace(code)
+        code = assignReplace(code)
+        code = logReplace(code)
+        code = interactReplace(code)
+        code = mathReplace(code)
+        code = commentReplace(code)
+        code = asyncReplace(code)
+        code = forReplace(code)
+        code = convReplace(code)
+        code = checkReplace(code)
+        code = oopReplace(code)
+        code = excepReplace(code)
+        code = domReplace(code)
+        
+        vm.runInNewContext(code, sandbox);
+        print(code)
+      end
+    else:
+      print(`Error: Unsupported file extension. Please use a ${extensions.primary}, ${extensions.secondary}, or ${extensions.module} file.`)
     end
-  else:
-    print(`Error: Unsupported file extension. Please use a ${extensions.primary}, ${extensions.secondary}, or ${extensions.module} file.`)
-  end
-recovery (err):
-  const msg = err.message
-  if msg.is_includes('module'):
-    print(code)
-  else:
-    const stackMsg = err.stack
-    print(stackParsing(locate, err.message, stackMsg, box, err.name, fileFrom))
+  recovery (err):
+    const msg = err.message
+    if msg.is_includes('module'):
+      print(code)
+    else:
+      const stackMsg = err.stack
+      print(stackParsing(locate, err.message, stackMsg, box, err.name, fileFrom))
+    end
   end
 end
+
+module.exports = { bspCommand }

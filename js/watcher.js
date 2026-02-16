@@ -2,7 +2,7 @@ const chokidar = require('chokidar');
 const fs = require('fs');
 const path = require('path');
 const { parsing, parsingMsg, parseCode } = require('./parser.js')
-const { funcReplace, condReplace, forEachReplace, reassignReplace, assignReplace, logReplace, interactReplace, mathReplace, domReplace, commentReplace, utilityReplace, asyncReplace, flowReplace, forReplace, convReplace, checkReplace, oopReplace, excepReplace, otherReplace } = require('../dist/parser/parsingDecl.js')
+const { funcReplace, condReplace, forEachReplace, reassignReplace, assignReplace, logReplace, interactReplace, mathReplace, domReplace, commentReplace, utilityReplace, asyncReplace, flowReplace, forReplace, convReplace, checkReplace, oopReplace, excepReplace, otherReplace } = require('../raw/parser/parsingDecl.js')
 
 function watching(directory, directory2) {
   let code;

@@ -3,13 +3,16 @@ const fs = require('fs')
 const path = require('path')
 const { defaultConfig, config, readFolder, extensions } = require('../js/bsc.js')
 
-const locate = process.argv[2]
-const directory = str(readFolder)
-const fileFrom = path.join(directory, locate)
-
-handle:
-  fs.unlinkSync(fileFrom)
-  print("Successfully deleted " + locate + " file")
-recovery (err):
-  print("Error:", err.message)
+func bsdCommand(locate):
+  const directory = str(readFolder)
+  const fileFrom = path.join(directory, locate)
+  
+  handle:
+    fs.unlinkSync(fileFrom)
+    print("Successfully deleted " + locate + " file")
+  recovery (err):
+    print("Error:", err.message)
+  end
 end
+
+module.exports = { bsdCommand }

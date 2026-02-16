@@ -1,0 +1,5 @@
+{
+  "readFolder": "./src/",
+  "toFolder": "./raw/",
+  "allowJs": true
+}
