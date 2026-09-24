@@ -4,6 +4,8 @@ const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
 const { spawnSync } = require('node:child_process')
+const { Script } = require('node:vm')
+const { compileSource } = require('../scripts/compile.cjs')
 
 const root = path.resolve(__dirname, '..')
 const binary = path.join(root, 'dist', 'index.min.cjs')
@@ -26,6 +28,19 @@ test('build produces the packaged executable', () => {
   assert.ok(fs.statSync(binary).isFile())
   assert.match(fs.readFileSync(binary, 'utf8'), /^#!\/usr\/bin\/env node/)
   assert.equal(invoke(['--version']).status, 0)
+})
+
+test('every CLI source compiles through the build compiler', () => {
+  for (const name of ['index', 'bsr', 'bst', 'bsp', 'bsd', 'translate']) {
+    const source = fs.readFileSync(path.join(root, 'src', `${name}.bs`), 'utf8')
+    const code = compileSource(source)
+    assert.match(source, /\bfunc \w+\(|\bhandle:/)
+    assert.doesNotMatch(source, /\bfunction\s+\w+\s*\(|\btry\s*\{/)
+    assert.match(code, /function \w+\(|try \{/)
+    assert.doesNotThrow(() => new Script(code, { filename: `${name}.js` }))
+  }
+  assert.match(compileSource('func valid(value):\n  print(value)\nend'), /function valid\(value\) \{/)
+  assert.throws(() => new Script(compileSource('func invalid():\n  print("x")\n')), SyntaxError)
 })
 
 test('global and command help succeeds', () => {
@@ -123,4 +138,13 @@ test('legacy file options still work', context => {
   assert.ok(fs.existsSync(path.join(directory, 'legacy.js')))
   assert.equal(invoke(['-d', 'legacy.bys'], directory).status, 0)
   assert.equal(fs.existsSync(path.join(directory, 'legacy.bys')), false)
+})
+
+test('conflicting legacy commands fail without changing files', context => {
+  const directory = fixture(context)
+  fs.writeFileSync(path.join(directory, 'safe.bys'), 'print("safe")\n')
+  const result = invoke(['-p', 'safe.bys', '-d', 'safe.bys'], directory)
+  assert.notEqual(result.status, 0)
+  assert.match(result.stderr, /Specify only one command/)
+  assert.ok(fs.existsSync(path.join(directory, 'safe.bys')))
 })

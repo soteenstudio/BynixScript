@@ -48,6 +48,10 @@ npm ci
 npm run build
 npm test
 ```
+The build bootstraps the `.bs` CLI sources with the BynixScript compiler from the
+`bynixscript` development dependency, then bundles the compiled JavaScript with
+esbuild into `dist/index.min.cjs`. `npm test` also checks that every CLI source
+compiles through the same compiler path.
 ### Using CDN <a name="using-cdn-get-started"></a>
 ```html
 <bynix>
