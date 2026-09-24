@@ -1,0 +1,46 @@
+const fs = require('node:fs')
+const path = require('node:path')
+const { extensions } = require('../js/bsc.js')
+const { parsing, parsingMsg, parseCode, addSemicolons } = require('../js/parser.js')
+const replacements = require('./parser/parsingDecl.js')
+
+function resolveFile(file) {
+  if (typeof file !== 'string' || file.trim() === '') {
+    throw new Error('A file path is required.')
+  }
+  if (![extensions.primary, extensions.secondary, extensions.module].some(extension => file.endsWith(extension))) {
+    throw new Error(`Unsupported file extension: ${file}. Use ${extensions.primary}, ${extensions.secondary}, or ${extensions.module}.`)
+  }
+  const filePath = path.resolve(file)
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`File not found: ${file}`)
+  }
+  if (!fs.statSync(filePath).isFile()) {
+    throw new Error(`Not a file: ${file}`)
+  }
+  return filePath
+}
+
+function readSource(file) {
+  const filePath = resolveFile(file)
+  return { filePath, source: fs.readFileSync(filePath, 'utf8') }
+}
+
+function translate(source) {
+  let code = addSemicolons(parseCode(source))
+  if (parsing(code) === false) {
+    throw new Error(parsingMsg.message)
+  }
+  for (const name of [
+    'flowReplace', 'utilityReplace', 'funcReplace', 'condReplace',
+    'forEachReplace', 'reassignReplace', 'assignReplace', 'logReplace',
+    'interactReplace', 'mathReplace', 'commentReplace', 'asyncReplace',
+    'forReplace', 'convReplace', 'checkReplace', 'oopReplace',
+    'excepReplace', 'domReplace'
+  ]) {
+    code = replacements[name](code)
+  }
+  return code
+}
+
+module.exports = { resolveFile, readSource, translate, extensions }

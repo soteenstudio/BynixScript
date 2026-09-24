@@ -6,7 +6,9 @@
   "browser": "js/browser.js",
   "main": "./index.js",
   "scripts": {
-    "test": "node index.js"
+    "build": "node scripts/build.cjs",
+    "prepack": "npm run build",
+    "test": "npm run build && node --test tests/*.test.cjs"
   },
   "alias": {
     "test": "npm run test"

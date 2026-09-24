@@ -1,18 +1,10 @@
-#!/usr/bin/env node
-const fs = require('fs')
-const path = require('path')
-const { defaultConfig, config, readFolder, extensions } = require('../js/bsc.js')
+const fs = require('node:fs')
+const { resolveFile } = require('./translate.js')
 
-func bsdCommand(locate):
-  const directory = str(readFolder)
-  const fileFrom = path.join(directory, locate)
-  
-  handle:
-    fs.unlinkSync(fileFrom)
-    print("Successfully deleted " + locate + " file")
-  recovery (err):
-    print("Error:", err.message)
-  end
-end
+function bsdCommand(file) {
+  const filePath = resolveFile(file)
+  fs.unlinkSync(filePath)
+  console.log(`Deleted ${file}`)
+}
 
 module.exports = { bsdCommand }
