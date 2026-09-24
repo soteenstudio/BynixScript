@@ -4,7 +4,7 @@ const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
 const { spawnSync } = require('node:child_process')
-const { Script } = require('node:vm')
+const { Script, runInNewContext } = require('node:vm')
 const { compileSource } = require('../scripts/compile.cjs')
 
 const root = path.resolve(__dirname, '..')
@@ -41,6 +41,87 @@ test('every CLI source compiles through the build compiler', () => {
   }
   assert.match(compileSource('func valid(value):\n  print(value)\nend'), /function valid\(value\) \{/)
   assert.throws(() => new Script(compileSource('func invalid():\n  print("x")\n')), SyntaxError)
+})
+
+test('bootstrap compiler preserves quoted and template text while translating code', () => {
+  const source = [
+    "const single = 'func print(1) is_end(\"x\") # \\'quoted\\''",
+    'const double = "handle: print(2) rand(3) \\"quoted\\""',
+    'const template = `first print(3) # **',
+    'end \\`escaped\\` ${single} ${`nested print(4) ${double}`}`',
+    'const interpolated = `print(5) ${"needle".is_includes("need")}`',
+    'func show():',
+    '  print(single, double, template, interpolated)',
+    'end',
+    'show()'
+  ].join('\n')
+  const output = compileSource(source)
+  assert.match(output, /function show\(\) \{/)
+  for (const literal of [
+    "'func print(1) is_end(\"x\") # \\'quoted\\''",
+    '"handle: print(2) rand(3) \\"quoted\\""',
+    '`first print(3) # **\nend \\`escaped\\` ${single} ${`nested print(4) ${double}`}`',
+    '`print(5) ${"needle".includes("need")}`'
+  ]) {
+    assert.ok(output.includes(literal), `Missing unchanged literal: ${literal}`)
+  }
+  const values = []
+  runInNewContext(output, { console: { log: (...args) => values.push(args) } })
+  assert.deepEqual(values, [[
+    "func print(1) is_end(\"x\") # 'quoted'",
+    'handle: print(2) rand(3) "quoted"',
+    'first print(3) # **\nend `escaped` func print(1) is_end("x") # \'quoted\' nested print(4) handle: print(2) rand(3) "quoted"',
+    'print(5) true'
+  ]])
+})
+
+test('bootstrap compiler preserves line and block comments without executing their contents', () => {
+  const source = [
+    'const events = []',
+    '# print("from hash") func hidden():',
+    '// print("from slash") is_end("x")',
+    '/* print("from block")',
+    'end func hidden(): */',
+    '** print("from dialect block")',
+    'end is_includes("x") **',
+    'events.push("safe")',
+    'print(events.join(","))'
+  ].join('\n')
+  const output = compileSource(source)
+  for (const comment of [
+    '// print("from hash") func hidden():',
+    '// print("from slash") is_end("x")',
+    '/* print("from block")\nend func hidden(): */',
+    '/* print("from dialect block")\nend is_includes("x") */'
+  ]) {
+    assert.ok(output.includes(comment), `Missing unchanged comment: ${comment}`)
+  }
+  const values = []
+  runInNewContext(output, { console: { log: value => values.push(value) } })
+  assert.deepEqual(values, ['safe'])
+})
+
+test('packaged compiler preserves literals and ignores comments', context => {
+  const directory = fixture(context)
+  const source = [
+    'const value = `print(1) # \\`quoted\\`',
+    'end ${"func is_end(2)"}`',
+    '# print("unsafe hash")',
+    '/* print("unsafe block")',
+    'end */',
+    'print(value)'
+  ].join('\n')
+  fs.writeFileSync(path.join(directory, 'protected.bys'), source)
+  const compilation = invoke(['compile', 'protected.bys'], directory)
+  assert.equal(compilation.status, 0, compilation.stderr)
+  const output = fs.readFileSync(path.join(directory, 'protected.js'), 'utf8')
+  assert.ok(output.includes('`print(1) # \\`quoted\\`\nend ${"func is_end(2)"}`'))
+  assert.ok(output.includes('// print("unsafe hash")'))
+  assert.ok(output.includes('/* print("unsafe block")\nend */'))
+  const result = invoke(['run', 'protected.bys'], directory)
+  assert.equal(result.status, 0, result.stderr)
+  assert.equal(result.stdout.trim(), 'print(1) # `quoted`\nend func is_end(2)')
+  assert.doesNotMatch(result.stdout, /unsafe/)
 })
 
 test('global and command help succeeds', () => {
