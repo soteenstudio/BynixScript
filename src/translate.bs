@@ -2,45 +2,40 @@ const fs = require('node:fs')
 const path = require('node:path')
 const { extensions } = require('../js/bsc.js')
 const { parsing, parsingMsg, parseCode, addSemicolons } = require('../js/parser.js')
-const replacements = require('./parser/parsingDecl.js')
+const replacements = require('bynixscript/dist/parser/parsingDecl.js')
 
-function resolveFile(file) {
-  if (typeof file !== 'string' || file.trim() === '') {
-    throw new Error('A file path is required.')
-  }
-  if (![extensions.primary, extensions.secondary, extensions.module].some(extension => file.endsWith(extension))) {
-    throw new Error(`Unsupported file extension: ${file}. Use ${extensions.primary}, ${extensions.secondary}, or ${extensions.module}.`)
-  }
+func resolveFile(file):
+  if typeof file !== 'string' || file.trim() === '':
+    throw new Err('A file path is required.')
+  end
+  if !file.is_end(extensions.primary) && !file.is_end(extensions.secondary) && !file.is_end(extensions.module):
+    throw new Err(`Unsupported file extension: ${file}. Use ${extensions.primary}, ${extensions.secondary}, or ${extensions.module}.`)
+  end
   const filePath = path.resolve(file)
-  if (!fs.existsSync(filePath)) {
-    throw new Error(`File not found: ${file}`)
-  }
-  if (!fs.statSync(filePath).isFile()) {
-    throw new Error(`Not a file: ${file}`)
-  }
+  if !fs.existsSync(filePath):
+    throw new Err(`File not found: ${file}`)
+  end
+  if !fs.statSync(filePath).isFile():
+    throw new Err(`Not a file: ${file}`)
+  end
   return filePath
-}
+end
 
-function readSource(file) {
+func readSource(file):
   const filePath = resolveFile(file)
   return { filePath, source: fs.readFileSync(filePath, 'utf8') }
-}
+end
 
-function translate(source) {
-  let code = addSemicolons(parseCode(source))
-  if (parsing(code) === false) {
-    throw new Error(parsingMsg.message)
-  }
-  for (const name of [
-    'flowReplace', 'utilityReplace', 'funcReplace', 'condReplace',
-    'forEachReplace', 'reassignReplace', 'assignReplace', 'logReplace',
-    'interactReplace', 'mathReplace', 'commentReplace', 'asyncReplace',
-    'forReplace', 'convReplace', 'checkReplace', 'oopReplace',
-    'excepReplace', 'domReplace'
-  ]) {
-    code = replacements[name](code)
-  }
+func translate(source):
+  var code = addSemicolons(parseCode(source))
+  if parsing(code) === false:
+    throw new Err(parsingMsg.message)
+  end
+  const passes = 'flowReplace utilityReplace funcReplace condReplace forEachReplace reassignReplace assignReplace logReplace interactReplace mathReplace commentReplace asyncReplace forReplace convReplace checkReplace oopReplace excepReplace domReplace'.split(' ')
+  for const pass of passes:
+    code = replacements[pass](code)
+  end
   return code
-}
+end
 
 module.exports = { resolveFile, readSource, translate, extensions }

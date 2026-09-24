@@ -20,26 +20,37 @@ program.option('-r, --run <file>', 'Run a file')
 program.option('-c, --compile <file>', 'Compile a file')
 program.option('-p, --print <file>', 'Print translated JavaScript')
 program.option('-d, --delete <file>', 'Delete a file')
-program.action(() => {})
+func noOp():
+end
+program.action(noOp)
 
-try {
+handle:
   program.parse()
   const options = program.opts()
-  const selected = [
-    ['run', bsrCommand], ['compile', bstCommand],
-    ['print', bspCommand], ['delete', bsdCommand]
-  ].filter(([name]) => options[name] !== undefined)
+  const selected = []
+  for const name of ['run', 'compile', 'print', 'delete']:
+    if options[name] !== undefined:
+      selected.push(name)
+    end
+  end
 
-  if (selected.length > 1) {
-    throw new Error('Specify only one command at a time.')
-  }
-  if (selected.length === 1) {
-    const [name, command] = selected[0]
-    command(options[name])
-  } else if (process.argv.length === 2) {
+  if selected.length > 1:
+    throw new Err('Specify only one command at a time.')
+  elif selected.length === 1:
+    const name = selected[0]
+    if name === 'run':
+      bsrCommand(options[name])
+    elif name === 'compile':
+      bstCommand(options[name])
+    elif name === 'print':
+      bspCommand(options[name])
+    else:
+      bsdCommand(options[name])
+    end
+  elif process.argv.length === 2:
     program.error('A command is required.')
-  }
-} catch (error) {
-  console.error(`Error: ${error.message}`)
+  end
+recovery (error):
+  process.stderr.write(`Error: ${error.message}\n`)
   process.exitCode = 1
-}
+end

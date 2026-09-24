@@ -2,14 +2,13 @@ const fs = require('node:fs')
 const path = require('node:path')
 const { readSource, translate, extensions } = require('./translate.js')
 
-function bstCommand(file) {
+func bstCommand(file):
   const { source, filePath } = readSource(file)
   const code = translate(source)
   const extension = path.extname(filePath)
-  const output = filePath.slice(0, -extension.length) +
-    (extension === extensions.module ? '.mjs' : '.js')
+  const output = filePath.slice(0, -extension.length) + (extension === extensions.module ? '.mjs' : '.js')
   fs.writeFileSync(output, code, 'utf8')
-  console.log(`Compiled ${file} to ${output}`)
-}
+  print(`Compiled ${file} to ${output}`)
+end
 
 module.exports = { bstCommand }

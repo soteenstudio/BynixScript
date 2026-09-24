@@ -1,8 +1,8 @@
 const { readSource, translate } = require('./translate.js')
 
-function bspCommand(file) {
+func bspCommand(file):
   const { source } = readSource(file)
-  console.log(translate(source))
-}
+  print(translate(source))
+end
 
 module.exports = { bspCommand }

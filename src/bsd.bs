@@ -1,10 +1,10 @@
 const fs = require('node:fs')
 const { resolveFile } = require('./translate.js')
 
-function bsdCommand(file) {
+func bsdCommand(file):
   const filePath = resolveFile(file)
   fs.unlinkSync(filePath)
-  console.log(`Deleted ${file}`)
-}
+  print(`Deleted ${file}`)
+end
 
 module.exports = { bsdCommand }

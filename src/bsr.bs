@@ -2,14 +2,11 @@ const vm = require('node:vm')
 const { createRequire } = require('node:module')
 const { readSource, translate } = require('./translate.js')
 
-function bsrCommand(file) {
+func bsrCommand(file):
   const { source, filePath } = readSource(file)
   const code = translate(source)
-  vm.runInNewContext(code, {
-    console,
-    process,
-    require: createRequire(filePath)
-  }, { filename: filePath })
-}
+  const sandbox = { console, process, require: createRequire(filePath) }
+  vm.runInNewContext(code, sandbox, { filename: filePath })
+end
 
 module.exports = { bsrCommand }
