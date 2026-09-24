@@ -1,5 +1,6 @@
 /raw/
 /dist/
+/.bynix-build-*/
 /node_modules/
 *.js
 !js/*.js

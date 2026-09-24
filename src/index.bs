@@ -1,28 +1,45 @@
 #!/usr/bin/env node
 const { Command } = require('commander')
+const { version } = require('../package.json')
 const { bsrCommand } = require('./bsr.js')
 const { bstCommand } = require('./bst.js')
 const { bspCommand } = require('./bsp.js')
 const { bsdCommand } = require('./bsd.js')
 
-const program = new Command();
+const program = new Command()
 
-program.name('bynix').description('BynixScript command line interface tools').version('0.2.2-next')
+program.name('bynix').description('BynixScript command line interface').version(version)
+program.showHelpAfterError()
 
-program.option('-r, --run <path>', 'running files with extensions .bys').option('-c, --compile <path>', 'compile .bys files to .js').option('-p, --print', 'print code to cli').option('-d, --delete', 'delete a .bys file')
+program.command('run <file>').description('Run a BynixScript file').action(bsrCommand)
+program.command('compile <file>').description('Compile a BynixScript file to JavaScript').action(bstCommand)
+program.command('print <file>').description('Print the translated JavaScript without running it').action(bspCommand)
+program.command('delete <file>').description('Delete a BynixScript file').action(bsdCommand)
 
-program.parse()
+program.option('-r, --run <file>', 'Run a file')
+program.option('-c, --compile <file>', 'Compile a file')
+program.option('-p, --print <file>', 'Print translated JavaScript')
+program.option('-d, --delete <file>', 'Delete a file')
+program.action(() => {})
 
-const options = program.opts()
+try {
+  program.parse()
+  const options = program.opts()
+  const selected = [
+    ['run', bsrCommand], ['compile', bstCommand],
+    ['print', bspCommand], ['delete', bsdCommand]
+  ].filter(([name]) => options[name] !== undefined)
 
-if options.run:
-  bsrCommand(options.run)
-elif options.compile:
-  bstCommand(options.compile)
-elif options.print:
-  bspCommand(options.print)
-elif options.delete:
-  bsdCommand(options.delete)
-else:
-  console.log('No config provided')
-end
+  if (selected.length > 1) {
+    throw new Error('Specify only one command at a time.')
+  }
+  if (selected.length === 1) {
+    const [name, command] = selected[0]
+    command(options[name])
+  } else if (process.argv.length === 2) {
+    program.error('A command is required.')
+  }
+} catch (error) {
+  console.error(`Error: ${error.message}`)
+  process.exitCode = 1
+}
