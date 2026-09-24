@@ -1,0 +1,131 @@
+func lex(source):
+  const identifierStart = new RegExp('^[a-zA-Z_$]$')
+  const identifierPart = new RegExp('^[a-zA-Z0-9_$]$')
+  const digit = new RegExp('^[0-9]$')
+  const numberPattern = new RegExp('^[0-9]+(\\.[0-9]+)?$')
+  const tokens = []
+  var offset = 0
+  var line = 1
+  var column = 1
+  var depth = 0
+  while (offset < source.length) {
+    const start = offset
+    const row = line
+    const col = column
+    const character = source[offset]
+    if character === ' ' || character === '\t' || character === '\r':
+      offset += 1
+      column += 1
+    elif character === '\n':
+      if depth === 0:
+        tokens.push({ kind: 'newline', value: '\n', line: row, column: col })
+      end
+      offset += 1
+      line += 1
+      column = 1
+    elif character === '#' || (character === '/' && source[offset + 1] === '/'):
+      while (offset < source.length && source[offset] !== '\n') {
+        offset += 1
+        column += 1
+      }
+    elif character === '/' && source[offset + 1] === '*':
+      offset += 2
+      column += 2
+      var closed = false
+      while (offset < source.length) {
+        if source[offset] === '*' && source[offset + 1] === '/':
+          offset += 2
+          column += 2
+          closed = true
+          break
+        end
+        if source[offset] === '\n':
+          line += 1
+          column = 1
+        else:
+          column += 1
+        end
+        offset += 1
+      }
+      if !closed:
+        throw new SyntaxError(`Unterminated comment at ${row}:${col}`)
+      end
+    elif character === '"' || character === "'" || character === '`':
+      const quote = character
+      offset += 1
+      column += 1
+      var closed = false
+      while (offset < source.length) {
+        if source[offset] === '\\':
+          if offset + 1 >= source.length:
+            break
+          end
+          offset += 2
+          column += 2
+        elif source[offset] === quote:
+          offset += 1
+          column += 1
+          closed = true
+          break
+        elif source[offset] === '\n':
+          if quote !== '`':
+            throw new SyntaxError(`Unterminated string at ${row}:${col}`)
+          end
+          offset += 1
+          line += 1
+          column = 1
+        else:
+          offset += 1
+          column += 1
+        end
+      }
+      if !closed:
+        throw new SyntaxError(`Unterminated string at ${row}:${col}`)
+      end
+      tokens.push({ kind: 'string', value: source.slice(start, offset), line: row, column: col })
+    elif identifierStart.test(character):
+      while (offset < source.length && identifierPart.test(source[offset]) === true) {
+        offset += 1
+        column += 1
+      }
+      tokens.push({ kind: 'identifier', value: source.slice(start, offset), line: row, column: col })
+    elif digit.test(character):
+      while (offset < source.length && (digit.test(source[offset]) || source[offset] === '.') === true) {
+        offset += 1
+        column += 1
+      }
+      const value = source.slice(start, offset)
+      if !numberPattern.test(value):
+        throw new SyntaxError(`Invalid number at ${row}:${col}`)
+      end
+      tokens.push({ kind: 'number', value, line: row, column: col })
+    else:
+      const triple = source.slice(offset, offset + 3)
+      const double = source.slice(offset, offset + 2)
+      var value = character
+      if ['===', '!==', '**=', '...', '>>>'].includes(triple):
+        value = triple
+      elif ['==', '!=', '<=', '>=', '&&', '||', '??', '+=', '-=', '*=', '/=', '++', '--', '**', '=>', '?.'].includes(double):
+        value = double
+      end
+      if !'()[]{}.,:;?+-*/%!=<>|&'.includes(character):
+        throw new SyntaxError(`Unexpected character ${character} at ${row}:${col}`)
+      end
+      offset += value.length
+      column += value.length
+      if value === '(' || value === '[':
+        depth += 1
+      elif value === ')' || value === ']':
+        depth -= 1
+        if depth < 0:
+          throw new SyntaxError(`Unexpected ${value} at ${row}:${col}`)
+        end
+      end
+      tokens.push({ kind: 'symbol', value, line: row, column: col })
+    end
+  }
+  tokens.push({ kind: 'eof', value: '<eof>', line, column })
+  return tokens
+end
+
+module.exports = { lex }

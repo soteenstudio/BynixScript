@@ -1,8 +1,7 @@
 const fs = require('node:fs')
 const path = require('node:path')
 const { extensions } = require('../js/bsc.js')
-const { parsing, parsingMsg, parseCode, addSemicolons } = require('../js/parser.js')
-const replacements = require('bynixscript/dist/parser/parsingDecl.js')
+const { compileSource } = require('./parser/compiler.js')
 
 func resolveFile(file):
   if typeof file !== 'string' || file.trim() === '':
@@ -27,15 +26,7 @@ func readSource(file):
 end
 
 func translate(source):
-  var code = addSemicolons(parseCode(source))
-  if parsing(code) === false:
-    throw new Err(parsingMsg.message)
-  end
-  const passes = 'flowReplace utilityReplace funcReplace condReplace forEachReplace reassignReplace assignReplace logReplace interactReplace mathReplace commentReplace asyncReplace forReplace convReplace checkReplace oopReplace excepReplace domReplace'.split(' ')
-  for const pass of passes:
-    code = replacements[pass](code)
-  end
-  return code
+  return compileSource(source)
 end
 
 module.exports = { resolveFile, readSource, translate, extensions }

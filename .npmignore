@@ -3,6 +3,7 @@
 /docs/
 /example/
 /js/*
+!/js/browser.js
 /.git/
 /.github/
 bsc.json

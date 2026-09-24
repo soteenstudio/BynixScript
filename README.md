@@ -48,10 +48,42 @@ npm ci
 npm run build
 npm test
 ```
-The build bootstraps the `.bs` CLI sources with the BynixScript compiler from the
-`bynixscript` development dependency, then bundles the compiled JavaScript with
-esbuild into `dist/index.min.cjs`. `npm test` also checks that every CLI source
-compiles through the same compiler path.
+The build pins `bynixscript@0.2.1-next` for **bootstrap only**. It compiles
+`src/parser/lexer.bs`, `src/parser/syntax.bs`, and `src/parser/compiler.bs`
+with that version, checks that the resulting compiler can compile its own sources,
+then compiles the CLI sources with the generated compiler. esbuild packages the
+CLI as `dist/index.min.cjs` and the same compiler for the browser as
+`js/browser.js`. Browser and CLI do not use the old regex translator at runtime.
+
+### Native compiler subset (v0.3.0 development)
+
+Tokens include identifiers, decimal numbers, quoted and template strings,
+operators, punctuation, newlines, and EOF; `#`, `//`, and `/* ... */` comments
+are ignored. Tokens and syntax-tree nodes carry one-based line and column
+positions; malformed tokens, expressions, and blocks throw `SyntaxError` with
+the offending position. Blocks are terminated by `end`, not indentation;
+`elif` and `else` belong to the nearest open `if`, and `recovery`/`final` to
+the nearest `handle` block.
+
+Supported statements: `func`, `if`/`elif`/`else`, `for ... of`, `while`,
+`handle`/`recovery`/`final`, declarations, assignment, `return`, `throw`,
+`break`, `continue`, and expression statements. Expression nodes include
+literals, unary and binary operators, calls, members, indexes, arrays, objects,
+grouping, and conditional expressions. Operator precedence from lowest to
+highest: assignment; `||`/`??`; `&&`; equality; comparisons; `+`/`-`;
+`*`/`/`/`%`; `**`; unary; call/member/index. Assignments and exponentiation
+associate right-to-left. Strings remain untouched by keyword translation.
+
+Bootstrap sources use v0.2.1-compatible `func`/`if`/`for ... of`/`end` syntax;
+the build protects quoted literals from its regex passes and uses JavaScript
+`while (...) { ... }` blocks where v0.2.1 lacks a `while` form. No regex pass
+is used on user programs. The previous documented `match`/`case`, classes,
+`delay`/`repeat`, listener/iteration callback blocks, and DOM-specific
+`is_*` properties are not yet implemented and produce syntax errors instead
+of falling back to regex substitution. Regular-expression literals, arrow
+functions, multiline template interpolation of BynixScript syntax, and
+JavaScript-style function declarations are also outside this subset. The
+package remains at `0.2.2-next` until these syntax gaps are addressed.
 ### Using CDN <a name="using-cdn-get-started"></a>
 ```html
 <bynix>

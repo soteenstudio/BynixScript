@@ -33,7 +33,7 @@
     "Indonesian"
   ],
   "devDependencies": {
-    "bynixscript": "^0.2.1-next",
+    "bynixscript": "0.2.1-next",
     "esbuild": "^0.25.10"
   },
   "repository": "https://github.com/UngGasStudio/BynixScript/"

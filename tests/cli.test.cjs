@@ -30,7 +30,7 @@ test('build produces the packaged executable', () => {
   assert.equal(invoke(['--version']).status, 0)
 })
 
-test('every CLI source compiles through the build compiler', () => {
+test('bootstrap compiler accepts the CLI source subset', () => {
   for (const name of ['index', 'bsr', 'bst', 'bsp', 'bsd', 'translate']) {
     const source = fs.readFileSync(path.join(root, 'src', `${name}.bs`), 'utf8')
     const code = compileSource(source)

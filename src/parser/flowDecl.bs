@@ -1,9 +1,0 @@
-func flowReplace(codeMsg):
-  codeMsg = codeMsg.change(/(?<![(])match\s*(.+?)\:/g, (match, p1) => `switch (${p1}) {`)
-  codeMsg = codeMsg.change("switch ((", "switch (")
-  codeMsg = codeMsg.change(")) {", ") {")
-  codeMsg = codeMsg.change(/case (.+?):\n(.+?)/g, (match, p1, p2) => `case ${p1}: \n${p2}`)
-  return codeMsg
-end
-
-module.exports = { flowReplace }

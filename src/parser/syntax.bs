@@ -1,0 +1,297 @@
+const { lex } = require('./lexer.js')
+
+func current(state):
+  return state.tokens[state.index]
+end
+
+func fail(state, message):
+  const token = current(state)
+  throw new SyntaxError(`${message} at ${token.line}:${token.column}`)
+end
+
+func accept(state, value):
+  if current(state).value === value:
+    state.index += 1
+    return true
+  end
+  return false
+end
+
+func expect(state, value):
+  if !accept(state, value):
+    fail(state, `Expected ${value}`)
+  end
+end
+
+func readName(state):
+  const token = current(state)
+  if token.kind !== 'identifier':
+    fail(state, 'Expected identifier')
+  end
+  state.index += 1
+  return token.value
+end
+
+func separators(state):
+  while (current(state).kind === 'newline' || current(state).value === ';') {
+    state.index += 1
+  }
+end
+
+func precedence(operator):
+  const levels = [['=', '+=', '-=', '*=', '/='], ['||', '??'], ['&&'], ['==', '!=', '===', '!=='], ['<', '>', '<=', '>=', 'in', 'instanceof'], ['+', '-'], ['*', '/', '%'], ['**']]
+  var index = 0
+  while (index < levels.length) {
+    if levels[index].includes(operator):
+      return index + 1
+    end
+    index += 1
+  }
+  return 0
+end
+
+func expression(state, minimum):
+  var left = primary(state)
+  while (true) {
+    const token = current(state)
+    const operator = token.value
+    if operator === '.' || operator === '?.':
+      state.index += 1
+      left = { type: 'member', object: left, property: readName(state), optional: operator === '?.', line: token.line, column: token.column }
+    elif operator === '[':
+      state.index += 1
+      const property = expression(state, 1)
+      expect(state, ']')
+      left = { type: 'index', object: left, property, line: token.line, column: token.column }
+    elif operator === '(':
+      state.index += 1
+      const args = []
+      if !accept(state, ')'):
+        while (true) {
+          args.push(expression(state, 1))
+          if !accept(state, ','):
+            break
+          end
+        }
+        expect(state, ')')
+      end
+      left = { type: 'call', callee: left, args, line: token.line, column: token.column }
+    elif operator === '++' || operator === '--':
+      state.index += 1
+      left = { type: 'postfix', operator, argument: left, line: token.line, column: token.column }
+    elif operator === '?' && minimum <= 2:
+      state.index += 1
+      const yes = expression(state, 1)
+      expect(state, ':')
+      left = { type: 'conditional', condition: left, yes, no: expression(state, 2), line: token.line, column: token.column }
+    else:
+      const rank = precedence(operator)
+      if rank === 0 || rank < minimum:
+        break
+      end
+      state.index += 1
+      const right = expression(state, rank + (rank === 1 || operator === '**' ? 0 : 1))
+      left = { type: 'binary', operator, left, right, line: token.line, column: token.column }
+    end
+  }
+  return left
+end
+
+func primary(state):
+  const token = current(state)
+  state.index += 1
+  if token.kind === 'string' || token.kind === 'number' || token.kind === 'identifier' && !['new', 'typeof', 'void', 'delete'].includes(token.value):
+    return { type: 'literal', value: token.value, line: token.line, column: token.column }
+  elif ['!', '-', '+', 'typeof', 'void', 'delete', 'new'].includes(token.value):
+    return { type: 'unary', operator: token.value, argument: expression(state, token.value === 'new' ? 9 : 8), line: token.line, column: token.column }
+  elif token.value === '(':
+    const value = expression(state, 1)
+    expect(state, ')')
+    return { type: 'group', value, line: token.line, column: token.column }
+  elif token.value === '[':
+    const items = []
+    if !accept(state, ']'):
+      while (true) {
+        items.push(expression(state, 1))
+        if !accept(state, ','):
+          break
+        end
+      }
+      expect(state, ']')
+    end
+    return { type: 'array', items, line: token.line, column: token.column }
+  elif token.value === '{':
+    const entries = []
+    if !accept(state, '}'):
+      while (true) {
+        const key = current(state)
+        if key.kind !== 'identifier' && key.kind !== 'string' && key.kind !== 'number':
+          fail(state, 'Expected property name')
+        end
+        state.index += 1
+        var value = null
+        if accept(state, ':'):
+          value = expression(state, 1)
+        end
+        entries.push({ key: key.value, value })
+        if !accept(state, ','):
+          break
+        end
+      }
+      expect(state, '}')
+    end
+    return { type: 'object', entries, line: token.line, column: token.column }
+  end
+  state.index -= 1
+  fail(state, 'Expected expression')
+end
+
+func block(state, stops):
+  const body = []
+  separators(state)
+  while (current(state).kind !== 'eof' && !stops.includes(current(state).value) === true) {
+    body.push(statement(state))
+    if current(state).kind !== 'eof' && !stops.includes(current(state).value) && current(state).kind !== 'newline' && current(state).value !== ';':
+      fail(state, 'Expected end of statement')
+    end
+    separators(state)
+  }
+  return body
+end
+
+func colon(state):
+  expect(state, ':')
+  if current(state).kind !== 'newline' && current(state).kind !== 'eof':
+    fail(state, 'Expected newline after block header')
+  end
+end
+
+func statement(state):
+  const token = current(state)
+  const word = token.value
+  state.index += 1
+  if ['match', 'case', 'delay', 'repeat', 'class', 'constructor', 'static', 'async', 'listener', 'forEach'].includes(word):
+    state.index -= 1
+    fail(state, `Unsupported syntax ${word}`)
+  end
+  if ['end', 'elif', 'else', 'recovery', 'final'].includes(word):
+    state.index -= 1
+    fail(state, `Unexpected ${word}`)
+  end
+  if word === 'func':
+    const name = readName(state)
+    expect(state, '(')
+    const parameters = []
+    if !accept(state, ')'):
+      while (true) {
+        parameters.push(readName(state))
+        if !accept(state, ','):
+          break
+        end
+      }
+      expect(state, ')')
+    end
+    colon(state)
+    const body = block(state, ['end'])
+    expect(state, 'end')
+    return { type: 'function', name, parameters, body, line: token.line, column: token.column }
+  elif word === 'if':
+    const branches = []
+    const condition = expression(state, 1)
+    colon(state)
+    branches.push({ condition, body: block(state, ['elif', 'else', 'end']) })
+    while (accept(state, 'elif') === true) {
+      const next = expression(state, 1)
+      colon(state)
+      branches.push({ condition: next, body: block(state, ['elif', 'else', 'end']) })
+    }
+    var otherwise = null
+    if accept(state, 'else'):
+      colon(state)
+      otherwise = block(state, ['end'])
+    end
+    expect(state, 'end')
+    return { type: 'if', branches, otherwise, line: token.line, column: token.column }
+  elif word === 'for':
+    var declaration = null
+    if ['const', 'var', 'let'].includes(current(state).value):
+      declaration = current(state).value
+      state.index += 1
+    end
+    const binding = expression(state, 6)
+    if !accept(state, 'of'):
+      fail(state, 'Only for-of loops are supported')
+    end
+    const iterable = expression(state, 1)
+    colon(state)
+    const body = block(state, ['end'])
+    expect(state, 'end')
+    return { type: 'for', declaration, binding, iterable, body, line: token.line, column: token.column }
+  elif word === 'while':
+    var condition
+    var body
+    if accept(state, '('):
+      condition = expression(state, 1)
+      expect(state, ')')
+      expect(state, '{')
+      body = block(state, ['}'])
+      expect(state, '}')
+    else:
+      condition = expression(state, 1)
+      colon(state)
+      body = block(state, ['end'])
+      expect(state, 'end')
+    end
+    return { type: 'while', condition, body, line: token.line, column: token.column }
+  elif word === 'handle':
+    colon(state)
+    const body = block(state, ['recovery', 'final', 'end'])
+    var caught = null
+    var finallyBlock = null
+    if accept(state, 'recovery'):
+      expect(state, '(')
+      const name = readName(state)
+      expect(state, ')')
+      colon(state)
+      caught = { name, body: block(state, ['final', 'end']) }
+    end
+    if accept(state, 'final'):
+      colon(state)
+      finallyBlock = block(state, ['end'])
+    end
+    expect(state, 'end')
+    return { type: 'try', body, recovery: caught, 'final': finallyBlock, line: token.line, column: token.column }
+  elif word === 'const' || word === 'var' || word === 'let':
+    const name = expression(state, 2)
+    var value = null
+    if accept(state, '='):
+      value = expression(state, 1)
+    end
+    return { type: 'declaration', kind: word, name, value, line: token.line, column: token.column }
+  elif word === 'return' || word === 'throw':
+    var value = null
+    if current(state).kind !== 'newline' && current(state).kind !== 'eof' && current(state).value !== ';':
+      value = expression(state, 1)
+    end
+    if word === 'throw' && value === null:
+      fail(state, 'Expected expression')
+    end
+    return { type: word, value, line: token.line, column: token.column }
+  elif word === 'break' || word === 'continue':
+    return { type: word, line: token.line, column: token.column }
+  end
+  state.index -= 1
+  const result = expression(state, 1)
+  return { type: 'expression', value: result, line: token.line, column: token.column }
+end
+
+func parse(source):
+  const state = { tokens: lex(source), index: 0 }
+  const body = block(state, [])
+  if current(state).kind !== 'eof':
+    fail(state, 'Unexpected token')
+  end
+  return { type: 'program', body, line: 1, column: 1 }
+end
+
+module.exports = { parse }

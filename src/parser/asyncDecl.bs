@@ -1,9 +1,0 @@
-func asyncReplace(codeMsg):
-  codeMsg = codeMsg.change(/delay\:\n(.+?)/g, (match, p1) => `setTimeout(function() {\n    ${p1}`);
-  codeMsg = codeMsg.change(/repeat\:\n(.+?)/g, (match, p1) => `setInterval(function() {\n    ${p1}`);
-  codeMsg = codeMsg.change(/delay\:\s*(.+?)/g, (match, p1) => `setTimeout(function() {\n    ${p1}`);
-  codeMsg = codeMsg.change(/repeat\:\s*(.+?)/g, (match, p1) => `setInterval(function() {\n    ${p1}`);
-  return codeMsg
-end
-
-module.exports = { asyncReplace }

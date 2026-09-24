@@ -1,0 +1,173 @@
+const { parse } = require('./syntax.js')
+
+func unsupported(node, message):
+  throw new SyntaxError(`${message} at ${node.line}:${node.column}`)
+end
+
+func emitExpression(node):
+  if node['type'] === 'literal':
+    if ['class', 'switch', 'async', 'await', 'import', 'export', 'yield', 'function'].includes(node.value):
+      unsupported(node, `Unsupported syntax ${node.value}`)
+    end
+    if node.value === 'Err':
+      return 'Error'
+    end
+    return node.value
+  elif node['type'] === 'member':
+    var property = node.property
+    if property === 'is_end':
+      property = 'endsWith'
+    elif property === 'is_start':
+      property = 'startsWith'
+    elif property === 'is_includes':
+      property = 'includes'
+    elif property === 'is_matched':
+      property = 'match'
+    elif property === 'text':
+      property = 'textContent'
+    elif property === 'design':
+      property = 'style'
+    elif property === 'addClass':
+      return `${emitExpression(node.object)}.classList.add`
+    elif property === 'addElement':
+      property = 'appendChild'
+    elif property === 'change':
+      property = 'replace'
+    elif property.slice(0, 3) === 'is_':
+      unsupported(node, `Unsupported property ${property}`)
+    end
+    return `${emitExpression(node.object)}${node.optional ? '?.' : '.'}${property}`
+  elif node['type'] === 'index':
+    return `${emitExpression(node.object)}[${emitExpression(node.property)}]`
+  elif node['type'] === 'call':
+    var callee = emitExpression(node.callee)
+    if node.callee['type'] === 'literal':
+      if node.callee.value === 'print':
+        callee = 'console.log'
+      elif node.callee.value === 'int':
+        callee = 'parseInt'
+      elif node.callee.value === 'num':
+        callee = 'Number'
+      elif node.callee.value === 'str':
+        callee = 'String'
+      elif node.callee.value === 'float':
+        callee = 'parseFloat'
+      elif node.callee.value === 'json':
+        callee = 'JSON.parse'
+      elif node.callee.value === 'touch':
+        callee = 'alert'
+      elif node.callee.value === 'ask':
+        callee = 'prompt'
+      elif node.callee.value === 'rand':
+        callee = 'Math.random'
+      elif node.callee.value === 'roundDown':
+        callee = 'Math.floor'
+      elif node.callee.value === 'roundUp':
+        callee = 'Math.ceil'
+      elif node.callee.value === 'maxOf':
+        callee = 'Math.max'
+      elif node.callee.value === 'minOf':
+        callee = 'Math.min'
+      elif node.callee.value === 'getElement':
+        callee = 'document.querySelector'
+      elif node.callee.value === 'getAllElement':
+        callee = 'document.querySelectorAll'
+      elif node.callee.value === 'createElement':
+        callee = 'document.createElement'
+      end
+    elif node.callee['type'] === 'member' && node.callee.object.value === 'print':
+      if ['err', 'info', 'warn', 'debug', 'trace', 'assert'].includes(node.callee.property):
+        callee = `console.${node.callee.property === 'err' ? 'error' : node.callee.property}`
+      end
+    end
+    const args = []
+    for const arg of node.args:
+      args.push(emitExpression(arg))
+    end
+    return `${callee}(${args.join(', ')})`
+  elif node['type'] === 'binary':
+    return `(${emitExpression(node.left)} ${node.operator} ${emitExpression(node.right)})`
+  elif node['type'] === 'unary':
+    return `${node.operator}${['new', 'typeof', 'void', 'delete'].includes(node.operator) ? ' ' : ''}${emitExpression(node.argument)}`
+  elif node['type'] === 'postfix':
+    return `${emitExpression(node.argument)}${node.operator}`
+  elif node['type'] === 'conditional':
+    return `(${emitExpression(node.condition)} ? ${emitExpression(node.yes)} : ${emitExpression(node.no)})`
+  elif node['type'] === 'group':
+    return `(${emitExpression(node.value)})`
+  elif node['type'] === 'array':
+    const items = []
+    for const item of node.items:
+      items.push(emitExpression(item))
+    end
+    return `[${items.join(', ')}]`
+  elif node['type'] === 'object':
+    const entries = []
+    for const entry of node.entries:
+      if entry.value === null:
+        entries.push(entry.key)
+      else:
+        entries.push(`${entry.key}: ${emitExpression(entry.value)}`)
+      end
+    end
+    return `{ ${entries.join(', ')} }`
+  end
+  unsupported(node, `Unsupported expression ${node['type']}`)
+end
+
+func emitBlock(body):
+  const output = []
+  for const node of body:
+    output.push(emitStatement(node))
+  end
+  return output.join('\n')
+end
+
+func emitStatement(node):
+  if node['type'] === 'function':
+    return `function ${node.name}(${node.parameters.join(', ')}) {\n${emitBlock(node.body)}\n}`
+  elif node['type'] === 'if':
+    const output = []
+    for const branch of node.branches:
+      output.push(`${output.length === 0 ? 'if' : 'else if'} (${emitExpression(branch.condition)}) {\n${emitBlock(branch.body)}\n}`)
+    end
+    if node.otherwise !== null:
+      output.push(`else {\n${emitBlock(node.otherwise)}\n}`)
+    end
+    return output.join(' ')
+  elif node['type'] === 'for':
+    return `for (${node.declaration === null ? '' : node.declaration + ' '}${emitExpression(node.binding)} of ${emitExpression(node.iterable)}) {\n${emitBlock(node.body)}\n}`
+  elif node['type'] === 'while':
+    return `while (${emitExpression(node.condition)}) {\n${emitBlock(node.body)}\n}`
+  elif node['type'] === 'try':
+    if node.recovery === null && node.final === null:
+      unsupported(node, 'A recovery or final block is required')
+    end
+    var output = `try {\n${emitBlock(node.body)}\n}`
+    if node.recovery !== null:
+      output += ` catch (${node.recovery.name}) {\n${emitBlock(node.recovery.body)}\n}`
+    end
+    if node.final !== null:
+      output += ` finally {\n${emitBlock(node.final)}\n}`
+    end
+    return output
+  elif node['type'] === 'declaration':
+    if node.value === null && node.kind === 'const':
+      unsupported(node, 'A constant requires an initializer')
+    end
+    return `${node.kind} ${emitExpression(node.name)}${node.value === null ? '' : ' = ' + emitExpression(node.value)};`
+  elif node['type'] === 'return' || node['type'] === 'throw':
+    return `${node['type']}${node.value === null ? '' : ' ' + emitExpression(node.value)};`
+  elif node['type'] === 'break' || node['type'] === 'continue':
+    return `${node['type']};`
+  elif node['type'] === 'expression':
+    return `${emitExpression(node.value)};`
+  end
+  unsupported(node, `Unsupported statement ${node['type']}`)
+end
+
+func compileSource(source):
+  return emitBlock(parse(source).body)
+end
+
+module.exports = { compileSource, emitExpression, emitStatement }

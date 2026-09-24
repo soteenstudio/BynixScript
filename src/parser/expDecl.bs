@@ -1,6 +1,0 @@
-func expReplace(codeMsg):
-  codeMsg = codeMsg.change(/(.+?)\.change\((.+?), \((.+?)\)\)\:/g, (match, p1, p2, p3) => `${p1}.replace(${p2}, (${p3}) => {`)
-  codeMsg = codeMsg.change(/(.+?)\.change\((.+)\)/g, (match, p1, p2) => `${p1}.replace(${p2})`);
-end
-
-module.exports = { expReplace }
