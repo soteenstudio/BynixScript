@@ -1,47 +1,16 @@
 # Command
-BynixScript has commands that can help you use BynixScript more easily.
-1. **Execution command**
-    - **bsr command**:
-      This command is used to run BynixScript without compiling first:
-      ```
-      bsr path/to/script.bs
-      ```
-    - **bst command**:
-      This command is used to compile the BynixScript file:
-      ```
-      bst path/to/script.bs
-      ```
-    - **bsp command**:
-      This command is used to print the results of the translation of the BynixScript code to the cli:
-      ```
-      bsp path/to/script.bs
-      ```
-    - **bsd command**:
-      This command is used to delete files:
-      ```
-      bsd path/to/script.bs
-      ```
-2. **Help command**
-    - **Display help**:
-      If you want to see help, you can write:
-      ```
-      bynixscript --help
-      
-      # or shorter
-      bs -h
-      ```
-    - **Display version**:
-      If you want to see the current version of BynixScript you are using, you can see it with the command:
-      ```
-      bynixscript --version
-      
-      # or shorter
-      bs -v
-      ```
-    - **Display download**:
-      ```
-      bynixscript --download [--day, --week, --month]
-      
-      # or shorter
-      bs -d [-d, -w, -m]
-      ```
+
+After `npm install -g bynixscript`, use the installed `bynix` executable:
+
+| Command | Action |
+| --- | --- |
+| `bynix run path/to/script.bys` | Translate and run a BynixScript file. |
+| `bynix compile path/to/script.bys` | Write translated JavaScript beside the source file (`.js`, or `.mjs` for `.mbs`). Does not run the file. |
+| `bynix print path/to/script.bys` | Print translated JavaScript without running the file. |
+| `bynix delete path/to/script.bys` | Delete the specified file. A path is always required. |
+
+By default, input files use `.bys`, `.bynixscript`, or `.mbs`. Paths are relative to the current directory, or may be absolute. Invalid paths and unsupported extensions produce an error and a nonzero exit status.
+
+Use `bynix --help` for all commands, `bynix <command> --help` for command-specific help, and `bynix --version` for the version. The earlier option forms `bynix -r <file>`, `bynix -c <file>`, `bynix -p <file>`, and `bynix -d <file>` remain available.
+
+For development, run `npm ci` followed by `npm run build`. The build uses the `bynixscript` development dependency as a bootstrap compiler to translate the `.bs` CLI sources through BynixScript's normal parser and replacement passes, then bundles the resulting JavaScript with esbuild into `dist/index.min.cjs`. `npm test` builds the executable, checks that all CLI sources compile through that same path, and runs the command tests.

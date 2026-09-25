@@ -1,0 +1,32 @@
+const fs = require('node:fs')
+const path = require('node:path')
+const { extensions } = require('./config.js').loadConfig('./bsc.json', '.bys')
+const { compileSource } = require('../scripts/compile.cjs')
+
+func resolveFile(file):
+  if typeof file !== 'string' || file.trim() === '':
+    throw new Err('A file path is required.')
+  end
+  if !file.is_end(extensions.primary) && !file.is_end(extensions.secondary) && !file.is_end(extensions.module):
+    throw new Err(`Unsupported file extension: ${file}. Use ${extensions.primary}, ${extensions.secondary}, or ${extensions.module}.`)
+  end
+  const filePath = path.resolve(file)
+  if !fs.existsSync(filePath):
+    throw new Err(`File not found: ${file}`)
+  end
+  if !fs.statSync(filePath).isFile():
+    throw new Err(`Not a file: ${file}`)
+  end
+  return filePath
+end
+
+func readSource(file):
+  const filePath = resolveFile(file)
+  return { filePath, source: fs.readFileSync(filePath, 'utf8') }
+end
+
+func translate(source):
+  return compileSource(source)
+end
+
+module.exports = { resolveFile, readSource, translate, extensions }

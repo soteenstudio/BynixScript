@@ -25,20 +25,35 @@ npm install -g bynixscript
 ### Using NPM <a name="using-npm-get-started"></a>
 Run a BynixScript file:
 ```
-bsr path/to/script.bs
+bynix run path/to/script.bys
 ```
 Compile a BynixScript file:
 ```
-bst path/to/script.bs
+bynix compile path/to/script.bys
 ```
-To print a BynixScript file to console:
+The compiled JavaScript is written next to the source file (`script.js`, or `script.mjs` for `.mbs`).
+To print translated JavaScript without running it:
 ```
-bsp path/to/script.bs
+bynix print path/to/script.bys
 ```
-To delete a file
+To delete a file (an explicit file path is required):
 ```
-bsd path/to/script.bs
+bynix delete path/to/script.bys
 ```
+Run `bynix --help` or `bynix run --help` for usage. The default supported extensions are `.bys`, `.bynixscript`, and `.mbs`.
+
+To build the packaged executable from source while developing:
+```
+npm ci
+npm run build
+npm test
+```
+The build bootstraps the `.bs` CLI sources with the BynixScript compiler from the
+`bynixscript` development dependency, then bundles the compiled JavaScript with
+esbuild into `dist/index.min.cjs`. `npm test` also checks that every CLI source
+compiles through the same compiler path.
+The build also bundles the shared compiler with the browser integration entry
+into `dist/browser.js`; browser configuration uses the default extensions.
 ### Using CDN <a name="using-cdn-get-started"></a>
 ```html
 <bynix>

@@ -3,10 +3,12 @@
   "version": "0.2.2-next",
   "description": "This is new Programming Language.",
   "type": "commonjs",
-  "browser": "js/browser.js",
+  "browser": "dist/browser.js",
   "main": "./index.js",
   "scripts": {
-    "test": "node index.js"
+    "build": "node scripts/build.cjs",
+    "prepack": "npm run build",
+    "test": "npm run build && node --test tests/*.test.cjs"
   },
   "alias": {
     "test": "npm run test"
@@ -31,6 +33,7 @@
     "Indonesian"
   ],
   "devDependencies": {
+    "bynixscript": "^0.2.1-next",
     "esbuild": "^0.25.10"
   },
   "repository": "https://github.com/UngGasStudio/BynixScript/"
