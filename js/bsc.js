@@ -1,1 +1,1 @@
-module.exports = require('./config.js').loadConfig('./bsc.json', '.bys')
+module.exports = require('../dist/modules/config.js').loadConfig('./bsc.json', '.bys')

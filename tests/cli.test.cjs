@@ -9,6 +9,7 @@ const { compileSource } = require('../scripts/compile.cjs')
 
 const root = path.resolve(__dirname, '..')
 const binary = path.join(root, 'dist', 'index.min.cjs')
+const generated = path.join(root, 'dist', 'modules')
 
 function invoke(args, cwd = root) {
   return spawnSync(process.execPath, [binary, ...args], { cwd, encoding: 'utf8' })
@@ -26,6 +27,10 @@ test('build produces the packaged executable', () => {
   })
   assert.equal(result.status, 0, result.stderr)
   assert.ok(fs.statSync(binary).isFile())
+  for (const name of ['config', 'download', 'error', 'dirProcess', 'watcher']) {
+    assert.equal(fs.existsSync(path.join(root, 'js', `${name}.js`)), false)
+    assert.ok(fs.statSync(path.join(generated, `${name}.js`)).isFile())
+  }
   assert.match(fs.readFileSync(binary, 'utf8'), /^#!\/usr\/bin\/env node/)
   assert.equal(invoke(['--version']).status, 0)
 })
@@ -231,18 +236,34 @@ test('conflicting legacy commands fail without changing files', context => {
   assert.ok(fs.existsSync(path.join(directory, 'safe.bys')))
 })
 
-test('generated modules match their BynixScript sources', () => {
+test('generated modules expose their source implementations', () => {
+  const exports = {
+    config: ['loadConfig'], download: ['https', 'getDownloads'], error: ['stackParsing'],
+    dirProcess: ['readAndProcessFilesInDirectory'], watcher: ['watching']
+  }
+  for (const [name, expected] of Object.entries(exports)) {
+    assert.deepEqual(Object.keys(require(path.join(generated, `${name}.js`))), expected)
+  }
+})
+
+test('package contains the CLI, browser, and generated modules without js duplicates', () => {
+  const result = spawnSync('npm', ['pack', '--dry-run', '--ignore-scripts', '--json'], {
+    cwd: root, encoding: 'utf8'
+  })
+  assert.equal(result.status, 0, result.stderr)
+  const files = new Set(JSON.parse(result.stdout)[0].files.map(file => file.path))
+  for (const file of ['dist/index.min.cjs', 'dist/browser.js',
+    ...['config', 'download', 'error', 'dirProcess', 'watcher'].map(name => `dist/modules/${name}.js`)]) {
+    assert.ok(files.has(file), `${file} missing from package`)
+  }
   for (const name of ['config', 'download', 'error', 'dirProcess', 'watcher']) {
-    const source = fs.readFileSync(path.join(root, 'src', `${name}.bs`), 'utf8')
-    const code = compileSource(source)
-    assert.equal(fs.readFileSync(path.join(root, 'js', `${name}.js`), 'utf8'),
-      code.endsWith('\n') ? code : code + '\n')
+    assert.equal(files.has(`js/${name}.js`), false)
   }
 })
 
 test('configuration wrappers preserve separate defaults and public exports', context => {
   const directory = fixture(context)
-  const { loadConfig } = require('../js/config.js')
+  const { loadConfig } = require('../dist/modules/config.js')
   const legacy = require('../js/bsconfig.js')
   const current = require('../js/bsc.js')
   assert.equal(legacy.extensions.primary, '.bs')
@@ -265,7 +286,7 @@ test('configuration wrappers preserve separate defaults and public exports', con
 })
 
 test('generated error formatter preserves its public behavior', () => {
-  const { stackParsing } = require('../js/error.js')
+  const { stackParsing } = require('../dist/modules/error.js')
   assert.equal(stackParsing('test.bys', 'missing', '', null, 'Error'), 'missing')
   assert.equal(stackParsing('test.bys', 'failed in bst.js', '', 'code', 'Error'),
     'Error: failed in test.bys')
@@ -275,7 +296,7 @@ test('generated error formatter preserves its public behavior', () => {
 
 test('generated download utility keeps its https export and reports counts', () => {
   const { EventEmitter } = require('node:events')
-  const { https, getDownloads } = require('../js/download.js')
+  const { https, getDownloads } = require('../dist/modules/download.js')
   const originalGet = https.get
   const originalLog = console.log
   const messages = []
@@ -300,7 +321,7 @@ test('generated download utility keeps its https export and reports counts', () 
 test('directory processor does not run on import and compiles file contents', async context => {
   const directory = fixture(context)
   fs.writeFileSync(path.join(directory, 'example.bs'), 'globalThis.bynixDirectoryTest = "print(1)"\n# print("unsafe")\n')
-  const modulePath = path.join(root, 'js', 'dirProcess.js')
+  const modulePath = path.join(generated, 'dirProcess.js')
   const importOnly = spawnSync(process.execPath, ['-e', `require(${JSON.stringify(modulePath)})`], {
     cwd: directory, encoding: 'utf8'
   })
@@ -319,7 +340,7 @@ test('directory processor does not run on import and compiles file contents', as
 test('watcher compiles with the shared compiler and removes generated output', async context => {
   const source = fixture(context)
   const output = fixture(context)
-  const { watching } = require('../js/watcher.js')
+  const { watching } = require('../dist/modules/watcher.js')
   const watcher = watching(source, output)
   context.after(() => watcher.close())
   await new Promise((resolve, reject) => {
