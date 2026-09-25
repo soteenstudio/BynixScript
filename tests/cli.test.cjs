@@ -31,7 +31,8 @@ test('build produces the packaged executable', () => {
 })
 
 test('every CLI source compiles through the build compiler', () => {
-  for (const name of ['index', 'bsr', 'bst', 'bsp', 'bsd', 'translate']) {
+  for (const name of ['index', 'bsr', 'bst', 'bsp', 'bsd', 'translate',
+    'config', 'download', 'error', 'dirProcess', 'watcher']) {
     const source = fs.readFileSync(path.join(root, 'src', `${name}.bs`), 'utf8')
     const code = compileSource(source)
     assert.match(source, /\bfunc \w+\(|\bhandle:/)
@@ -228,4 +229,172 @@ test('conflicting legacy commands fail without changing files', context => {
   assert.notEqual(result.status, 0)
   assert.match(result.stderr, /Specify only one command/)
   assert.ok(fs.existsSync(path.join(directory, 'safe.bys')))
+})
+
+test('generated modules match their BynixScript sources', () => {
+  for (const name of ['config', 'download', 'error', 'dirProcess', 'watcher']) {
+    const source = fs.readFileSync(path.join(root, 'src', `${name}.bs`), 'utf8')
+    const code = compileSource(source)
+    assert.equal(fs.readFileSync(path.join(root, 'js', `${name}.js`), 'utf8'),
+      code.endsWith('\n') ? code : code + '\n')
+  }
+})
+
+test('configuration wrappers preserve separate defaults and public exports', context => {
+  const directory = fixture(context)
+  const { loadConfig } = require('../js/config.js')
+  const legacy = require('../js/bsconfig.js')
+  const current = require('../js/bsc.js')
+  assert.equal(legacy.extensions.primary, '.bs')
+  assert.equal(current.extensions.primary, '.bys')
+  assert.equal(legacy.defaultConfig.extension.primary, '.bs')
+  assert.equal(current.defaultConfig.extension.primary, '.bys')
+  for (const name of ['defaultConfig', 'config', 'extensions', 'readFolder', 'toFolder',
+    'watch', 'allowJs', 'strict', 'translate']) {
+    assert.ok(Object.hasOwn(current, name))
+    assert.ok(Object.hasOwn(legacy, name))
+  }
+  const file = path.join(directory, 'custom.json')
+  fs.writeFileSync(file, JSON.stringify({ extension: { secondary: '.custom' }, readFolder: 'input', watch: true }))
+  const loaded = loadConfig(file, '.bys')
+  assert.equal(loaded.extensions.primary, '.bys')
+  assert.equal(loaded.extensions.secondary, '.custom')
+  assert.equal(loaded.readFolder, 'input')
+  assert.equal(loaded.watch, true)
+  assert.equal(loadConfig(path.join(directory, 'missing.json'), '.bs').extensions.primary, '.bs')
+})
+
+test('generated error formatter preserves its public behavior', () => {
+  const { stackParsing } = require('../js/error.js')
+  assert.equal(stackParsing('test.bys', 'missing', '', null, 'Error'), 'missing')
+  assert.equal(stackParsing('test.bys', 'failed in bst.js', '', 'code', 'Error'),
+    'Error: failed in test.bys')
+  assert.equal(stackParsing('test.bys', 'invalid', 'test.bys:3:1', 'first\nsecond\nthird', 'SyntaxError'),
+    'SyntaxError: invalid\n  at file test.bys\n\nSnippet:\nsecond\n')
+})
+
+test('generated download utility keeps its https export and reports counts', () => {
+  const { EventEmitter } = require('node:events')
+  const { https, getDownloads } = require('../js/download.js')
+  const originalGet = https.get
+  const originalLog = console.log
+  const messages = []
+  try {
+    console.log = message => messages.push(message)
+    https.get = (url, callback) => {
+      assert.equal(url, 'https://api.npmjs.org/downloads/point/last-week/bynixscript')
+      const response = new EventEmitter()
+      callback(response)
+      response.emit('data', '{"downloads":42}')
+      response.emit('end')
+      return new EventEmitter()
+    }
+    getDownloads('bynixscript', 'week')
+    assert.deepEqual(messages, ['Package bynixscript downloaded 42 times.'])
+  } finally {
+    https.get = originalGet
+    console.log = originalLog
+  }
+})
+
+test('directory processor does not run on import and compiles file contents', async context => {
+  const directory = fixture(context)
+  fs.writeFileSync(path.join(directory, 'example.bs'), 'globalThis.bynixDirectoryTest = "print(1)"\n# print("unsafe")\n')
+  const modulePath = path.join(root, 'js', 'dirProcess.js')
+  const importOnly = spawnSync(process.execPath, ['-e', `require(${JSON.stringify(modulePath)})`], {
+    cwd: directory, encoding: 'utf8'
+  })
+  assert.equal(importOnly.status, 0, importOnly.stderr)
+  assert.equal(importOnly.stdout, '')
+  assert.equal(importOnly.stderr, '')
+  const { readAndProcessFilesInDirectory } = require(modulePath)
+  context.after(() => { delete globalThis.bynixDirectoryTest })
+  readAndProcessFilesInDirectory(directory)
+  for (let attempt = 0; attempt < 100 && globalThis.bynixDirectoryTest === undefined; attempt++) {
+    await new Promise(resolve => setTimeout(resolve, 10))
+  }
+  assert.equal(globalThis.bynixDirectoryTest, 'print(1)')
+})
+
+test('watcher compiles with the shared compiler and removes generated output', async context => {
+  const source = fixture(context)
+  const output = fixture(context)
+  const { watching } = require('../js/watcher.js')
+  const watcher = watching(source, output)
+  context.after(() => watcher.close())
+  await new Promise((resolve, reject) => {
+    watcher.once('ready', resolve)
+    watcher.once('error', reject)
+  })
+  const file = path.join(source, 'watched.bys')
+  const generated = path.join(output, 'watched.js')
+  fs.writeFileSync(file, 'print("watch")\n# print("not executed")\n')
+  async function waitUntil(predicate) {
+    for (let attempt = 0; attempt < 100; attempt++) {
+      if (predicate()) return
+      await new Promise(resolve => setTimeout(resolve, 20))
+    }
+    assert.fail('watcher did not update the output')
+  }
+  await waitUntil(() => fs.existsSync(generated))
+  assert.equal(fs.readFileSync(generated, 'utf8'), compileSource(fs.readFileSync(file, 'utf8')))
+  fs.unlinkSync(file)
+  await waitUntil(() => !fs.existsSync(generated))
+})
+
+test('browser bundle runs the shared compiler without changing strings or comments', async () => {
+  const browser = fs.readFileSync(path.join(root, 'dist', 'browser.js'), 'utf8')
+  const scripts = []
+  let onReady
+  let removed = false
+  const tag = {
+    textContent: 'const text = "print(123)"\n# print("unsafe")\nprint(text)',
+    getAttribute: () => null,
+    remove: () => { removed = true }
+  }
+  const document = {
+    createElement: () => ({ classList: { add() {} } }),
+    head: { appendChild() {} },
+    body: { appendChild: script => scripts.push(script.textContent) },
+    addEventListener: (name, callback) => { onReady = callback },
+    querySelectorAll: () => [tag]
+  }
+  runInNewContext(browser, { document, console })
+  onReady()
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(removed, true)
+  assert.equal(scripts.length, 1)
+  assert.ok(scripts[0].includes('"print(123)"'))
+  assert.ok(scripts[0].includes('// print("unsafe")'))
+  const printed = []
+  runInNewContext(scripts[0], { console: { log: value => printed.push(value) } })
+  assert.deepEqual(printed, ['print(123)'])
+})
+
+test('browser bundle fetches sources and honors allowJs', async () => {
+  const browser = fs.readFileSync(path.join(root, 'dist', 'browser.js'), 'utf8')
+  const scripts = []
+  let onReady
+  const tag = {
+    getAttribute: name => ({ src: 'remote.bys', allowJs: 'true' })[name] ?? null,
+    remove() {}
+  }
+  const document = {
+    createElement: () => ({ classList: { add() {} } }),
+    head: { appendChild() {} },
+    body: { appendChild: script => scripts.push(script.textContent) },
+    addEventListener: (name, callback) => { onReady = callback },
+    querySelectorAll: () => [tag]
+  }
+  runInNewContext(browser, {
+    document, console,
+    fetch: async file => {
+      assert.equal(file, 'remote.bys')
+      return { ok: true, text: async () => 'const message = "print(1)"\nprint(message)\n' }
+    }
+  })
+  onReady()
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(scripts.length, 1)
+  assert.ok(scripts[0].includes('"print(1)"'))
 })
