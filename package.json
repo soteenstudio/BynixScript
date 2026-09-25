@@ -3,7 +3,7 @@
   "version": "0.2.2-next",
   "description": "This is new Programming Language.",
   "type": "commonjs",
-  "browser": "js/browser.js",
+  "browser": "dist/browser.js",
   "main": "./index.js",
   "scripts": {
     "build": "node scripts/build.cjs",

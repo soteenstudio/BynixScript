@@ -1,58 +1,34 @@
 function stackParsing(filename, errorMsg, errorStack, code, type, modulLocation) {
-  if (code !== undefined && code !== null) {
-    const stackLines = errorStack.split('\n');
-    let codeLines = code.split('\n');
-    
-    const errorLine = stackLines[0];
-    const parts = errorLine.split(':');
-    let line;
-    let column
-    let tabs;
-    let arrow;
-    let errorCode;
-    if (type === "SyntaxError") {
-      const errorLine = stackLines[0];
-      const parts = errorLine.split(':');
-      line  = parseInt(parts[1].trim());
-      let l = line - 2;
-      errorCode = codeLines[l].trim();
-      
-      return `${type}: ${errorMsg}\n  at file ${filename}\n\nSnippet:\n${errorCode}\n`;
-    } else if (type === "TypeError" || type === "ReferenceError" || type === "RangeError" || type === "URIError" || type === "EvalError") {
-      const errorLine = stackLines[5];
-      const parts = errorLine.split(':');
-      line  = parseInt(parts[1].trim());
-      column = parseInt(parts[2].trim());
-      
-      if (column > 6) {
-        column -= 6;
-      }
-      
-      let l = line - 1;
-      const codeNoTrim = codeLines[l]
-      errorCode = codeLines[l].trim();
-      const spaces = codeNoTrim.match(/^ +/);
-      const spacesCount = spaces ? spaces[0].length : 0;
-      let x = column - spacesCount - 1;
-      if (x < 0) {
-        x = Math.abs(x);
-        x -= 2;
-      }
-      tabs = ' '.repeat(x);
-      arrow = tabs + '^';
-      
-      return `${type}: ${errorMsg}\n  at file ${filename}\n  at line ${line}, column ${column}\n\nSnippet:\n${errorCode}\n${arrow}`;
-    } else {
-      let commonErr = errorMsg
-      commonErr = commonErr.replace(/\sstack/g, '');
-      commonErr = commonErr.replace(/bst\.js/g, filename);
-      commonErr = commonErr.replace(/bsr\.js/g, filename);
-      commonErr = commonErr.replace(/bsp\.js/g, filename);
-      return `${type}: ${commonErr}`;
+  if (code === undefined || code === null) {
+    return errorMsg
+  }
+  const stackLines = errorStack.split('\n');
+  const codeLines = code.split('\n');
+  if (type === 'SyntaxError') {
+    const line = parseInt(stackLines[0].split(':')[1].trim());
+    const errorCode = codeLines[line - 2].trim();
+    return `${type}: ${errorMsg}\n  at file ${filename}\n\nSnippet:\n${errorCode}\n`
+  } else if (type === 'TypeError' || type === 'ReferenceError' || type === 'RangeError' || type === 'URIError' || type === 'EvalError') {
+    const parts = stackLines[5].split(':');
+    const line = parseInt(parts[1].trim());
+    let column = parseInt(parts[2].trim());
+    if (column > 6) {
+      column -= 6;
     }
+    const codeNoTrim = codeLines[line - 1];
+    const errorCode = codeNoTrim.trim();
+    const spaces = codeNoTrim.match(/^ +/);
+    const spacesCount = spaces ? spaces[0].length : 0;
+    let offset = column - spacesCount - 1;
+    if (offset < 0) {
+      offset = Math.abs(offset) - 2;
+    }
+    const arrow = ' '.repeat(offset) + '^';
+    return `${type}: ${errorMsg}\n  at file ${filename}\n  at line ${line}, column ${column}\n\nSnippet:\n${errorCode}\n${arrow}`
   } else {
-    return errorMsg;
+    const commonErr = errorMsg.replace(/\sstack/g, '').replace(/bst\.js|bsr\.js|bsp\.js/g, filename);
+    return `${type}: ${commonErr}`
   }
 }
 
-module.exports = { stackParsing };
+module.exports = { stackParsing }

@@ -92,10 +92,10 @@ function protectSource(source) {
   return { masked, restore: text => text.replace(token, (match, index) => protectedText[Number(index)]) }
 }
 
-function compileSource(source) {
+function compileSource(source, allowJs = false) {
   const { masked, restore } = protectSource(source)
   let code = addSemicolons(parseCode(masked))
-  if (parsing(code) === false) {
+  if (!allowJs && parsing(code) === false) {
     throw new Error(parsingMsg.message)
   }
   for (const pass of passes) {

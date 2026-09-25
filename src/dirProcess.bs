@@ -1,29 +1,29 @@
-const fs = require('node:fs');
-const path = require('node:path');
-const vm = require('node:vm');
-const { compileSource } = require('../scripts/compile.cjs');
+const fs = require('node:fs')
+const path = require('node:path')
+const vm = require('node:vm')
+const { compileSource } = require('../scripts/compile.cjs')
 
-function readAndProcessFilesInDirectory(directory) {
+func readAndProcessFilesInDirectory(directory):
   fs.readdir(directory, (error, files) => {
     if (error) {
-      console.error('Error reading directory:', error);
-      return;
+      console.error('Error reading directory:', error)
+      return
     }
     files.filter(file => path.extname(file) === '.bs').forEach(file => {
-      const filePath = path.join(directory, file);
+      const filePath = path.join(directory, file)
       fs.readFile(filePath, 'utf8', (readError, data) => {
         if (readError) {
           console.error(`Error reading file ${file}:`, readError)
-          return;
+          return
         }
-        try {
+        handle:
           new vm.Script(compileSource(data), { filename: filePath }).runInThisContext()
-        } catch (executionError) {
+        recovery (executionError):
           console.error(`Error executing file ${file}:`, executionError)
-        }
+        end
       })
     })
   })
-}
+end
 
 module.exports = { readAndProcessFilesInDirectory }

@@ -1,93 +1,43 @@
 const chokidar = require('chokidar');
-const fs = require('fs');
-const path = require('path');
-const { parsing, parsingMsg, parseCode } = require('./parser.js')
-const { funcReplace, condReplace, forEachReplace, reassignReplace, assignReplace, logReplace, interactReplace, mathReplace, domReplace, commentReplace, utilityReplace, asyncReplace, flowReplace, forReplace, convReplace, checkReplace, oopReplace, excepReplace, otherReplace } = require('../raw/parser/parsingDecl.js')
+const fs = require('node:fs');
+const path = require('node:path');
+const { compileSource } = require('../scripts/compile.cjs');
 
 function watching(directory, directory2) {
-  let code;
-  
-  const watcher = chokidar.watch(directory, {
-    ignored: /(^|[\/\\])\../,
-    persistent: true
-  });
-  
-  watcher
-    .on('add', filePath => {
-      code = fs.readFileSync(filePath, 'utf8');
-      code = parseCode(code);
-      const parsingResults = parsing(code);
-      if (parsingResults === false) {
-        console.log("Please check your code and try again.")
-      } else {
-        code = flowReplace(code)
-        code = utilityReplace(code)
-        code = funcReplace(code)
-        code = condReplace(code)
-        code = forEachReplace(code)
-        code = reassignReplace(code)
-        code = assignReplace(code)
-        code = logReplace(code)
-        code = interactReplace(code)
-        code = mathReplace(code)
-        code = commentReplace(code)
-        code = asyncReplace(code)
-        code = forReplace(code)
-        code = convReplace(code)
-        code = checkReplace(code)
-        code = oopReplace(code)
-        code = excepReplace(code)
-        code = domReplace(code)
-        var newFilePath = path.join(directory2, path.basename(filePath));
-        newFilePath = newFilePath.replace(".bs", ".js");
-        fs.writeFileSync(newFilePath, code);
-        
-        console.log(`File ${newFilePath} has been created.`);
-      }
-    })
-    .on('change', filePath => {
-      code = fs.readFileSync(filePath, 'utf8');
-      code = parseCode(code);
-      const parsingResults = parsing(code);
-      if (parsingResults === false) {
-        console.log("Please check your code and try again.")
-      } else {
-        code = flowReplace(code)
-        code = utilityReplace(code)
-        code = funcReplace(code)
-        code = condReplace(code)
-        code = forEachReplace(code)
-        code = reassignReplace(code)
-        code = assignReplace(code)
-        code = logReplace(code)
-        code = interactReplace(code)
-        code = mathReplace(code)
-        code = commentReplace(code)
-        code = asyncReplace(code)
-        code = forReplace(code)
-        code = convReplace(code)
-        code = checkReplace(code)
-        code = oopReplace(code)
-        code = excepReplace(code)
-        code = domReplace(code)
-        var newFilePath = path.join(directory2, path.basename(filePath));
-        newFilePath = newFilePath.replace(".bs", ".js");
-        fs.writeFileSync(newFilePath, code);
-        
-        console.log(`File ${newFilePath} has been changed.`);
-      }
-    })
-    .on('unlink', filePath => {
-      var newFilePath = path.join(directory2, path.basename(filePath));
-      newFilePath = newFilePath.replace(".bs", ".js");
-      fs.unlinkSync(newFilePath);
-      
-      console.log(`File ${newFilePath} has been deleted.`);
-    });
-  
-  watcher
-    .on('error', error => console.log(`Watcher error: ${error}`))
-    .on('ready', () => console.log('Initial scan complete. Ready for changes'));
+  const watcher = chokidar.watch(directory, { ignored: /(^|[\/\\])\../, persistent: true });
+  const extensions = ['.bs', '.bys', '.bynixscript', '.mbs'];
+  function outputPath(filePath) {
+    const extension = path.extname(filePath);
+    if (!extensions.includes(extension)) {
+      return null
+    }
+    return path.join(directory2, path.basename(filePath, extension) + (extension === '.mbs' ? '.mjs' : '.js'));
+  }
+  function compileFile(filePath) {
+    const output = outputPath(filePath);
+    if (!output) {
+      return;
+    }
+    try {
+      const source = fs.readFileSync(filePath, 'utf8');
+      const code = compileSource(source);
+      fs.writeFileSync(output, code);
+      console.log(`File ${output} has been created or changed.`)
+    } catch (error) {
+      console.error(`Error compiling ${filePath}:`, error)
+    }
+  }
+  function removeFile(filePath) {
+    const output = outputPath(filePath);
+    if (output && fs.existsSync(output)) {
+      fs.unlinkSync(output);
+      console.log(`File ${output} has been deleted.`)
+    }
+  }
+  watcher.on('add', compileFile).on('change', compileFile).on('unlink', removeFile);
+  watcher.on('error', error => console.error('Watcher error:', error));
+  watcher.on('ready', () => console.log('Initial scan complete. Ready for changes'));
+  return watcher
 }
 
-module.exports = { watching };
+module.exports = { watching }

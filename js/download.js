@@ -1,22 +1,15 @@
-const https = require('https');
+const https = require('node:https');
 
 function getDownloads(packageName, time) {
   const url = `https://api.npmjs.org/downloads/point/last-${time}/${packageName}`;
-  
-  https.get(url, (res) => {
+  https.get(url, response => {
     let data = '';
-    
-    res.on('data', (chunk) => {
-      data += chunk;
-    });
-    
-    res.on('end', () => {
+    response.on('data', chunk => { data += chunk });
+    response.on('end', () => {
       const jsonData = JSON.parse(data);
-      console.log(`Package ${packageName} downloaded ${jsonData.downloads} times.`);
-    });
-  }).on('error', (e) => {
-    console.error(`Error: ${e.message}`);
-  });
+      console.log(`Package ${packageName} downloaded ${jsonData.downloads} times.`)
+    })
+  }).on('error', error => { console.error(`Error: ${error.message}`) });
 }
 
-module.exports = { https, getDownloads };
+module.exports = { https, getDownloads }

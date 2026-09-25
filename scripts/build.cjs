@@ -7,9 +7,15 @@ const root = path.resolve(__dirname, '..')
 const temporary = fs.mkdtempSync(path.join(root, '.bynix-build-'))
 const source = path.join(root, 'src')
 const output = path.join(root, 'dist', 'index.min.cjs')
+const modules = ['config', 'download', 'error', 'dirProcess', 'watcher']
 
 async function main() {
   try {
+    for (const name of modules) {
+      const code = compileSource(fs.readFileSync(path.join(source, `${name}.bs`), 'utf8'))
+      fs.writeFileSync(path.join(root, 'js', `${name}.js`),
+        code.endsWith('\n') ? code : code + '\n')
+    }
     for (const name of fs.readdirSync(source, { withFileTypes: true })) {
       if (name.isFile() && name.name.endsWith('.bs')) {
         fs.writeFileSync(path.join(temporary, name.name.replace(/\.bs$/, '.js')),
@@ -27,6 +33,23 @@ async function main() {
       target: 'node20'
     })
     fs.chmodSync(output, 0o755)
+    await build({
+      entryPoints: [path.join(root, 'js', 'browser.js')],
+      outfile: path.join(root, 'dist', 'browser.js'),
+      platform: 'browser',
+      format: 'iife',
+      bundle: true,
+      plugins: [{
+        name: 'browser-config',
+        setup(bundle) {
+          bundle.onResolve({ filter: /^fs$/ }, () => ({ path: 'fs', namespace: 'browser-config' }))
+          bundle.onLoad({ filter: /.*/, namespace: 'browser-config' }, () => ({
+            contents: 'module.exports = { readFileSync() { throw new Error("No config file in browser") } }',
+            loader: 'js'
+          }))
+        }
+      }]
+    })
   } finally {
     fs.rmSync(temporary, { recursive: true, force: true })
   }

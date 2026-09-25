@@ -52,6 +52,8 @@ The build bootstraps the `.bs` CLI sources with the BynixScript compiler from th
 `bynixscript` development dependency, then bundles the compiled JavaScript with
 esbuild into `dist/index.min.cjs`. `npm test` also checks that every CLI source
 compiles through the same compiler path.
+The build also bundles the shared compiler with the browser integration entry
+into `dist/browser.js`; browser configuration uses the default extensions.
 ### Using CDN <a name="using-cdn-get-started"></a>
 ```html
 <bynix>
