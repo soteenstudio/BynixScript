@@ -1,6 +1,6 @@
 const fs = require('node:fs')
 const path = require('node:path')
-const { extensions } = require('../js/config.js').loadConfig('./bsc.json', '.bys')
+const { extensions } = require('./config.js').loadConfig('./bsc.json', '.bys')
 const { compileSource } = require('../scripts/compile.cjs')
 
 func resolveFile(file):
